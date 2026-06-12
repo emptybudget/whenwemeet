@@ -28,6 +28,11 @@ function getDaysInMonth(year: number, month: number) {
   return days;
 }
 
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
 function heatBg(count: number, total: number) {
   if (!total || !count) return "";
   const r = count / total;
@@ -166,12 +171,27 @@ export default function MemoView({ code, auth, roomState, myDates, setMyDates, o
   const firstDow = days[0].getDay();
   const baseExpireDate = new Date(Number(meta.baseExpireAt));
 
-  // Best dates: sorted by count desc
-  const topDates = Object.entries(heatmap)
-    .sort(([, a], [, b]) => b.length - a.length)
-    .slice(0, 5);
+  // Per-participant dates (reversed from heatmap)
+  const participantDates: Record<string, string[]> = {};
+  for (const [date, pids] of Object.entries(heatmap)) {
+    for (const pid of pids) {
+      if (!participantDates[pid]) participantDates[pid] = [];
+      participantDates[pid].push(date);
+    }
+  }
+  for (const pid of Object.keys(participantDates)) {
+    participantDates[pid].sort();
+  }
 
-  const otherParticipants = Object.entries(participants).filter(([pid]) => pid !== auth.participantId);
+  const overlappingDates = new Set(
+    Object.entries(heatmap)
+      .filter(([, pids]) => pids.length > 1)
+      .map(([date]) => date)
+  );
+
+  const participantList = Object.entries(participants).sort(([a], [b]) =>
+    a === auth.participantId ? -1 : b === auth.participantId ? 1 : 0
+  );
 
   return (
     <div
@@ -272,29 +292,52 @@ export default function MemoView({ code, auth, roomState, myDates, setMyDates, o
         )}
       </div>
 
-      {/* Top overlapping dates */}
-      {topDates.length > 0 && (
+      {/* Per-participant dates + memos */}
+      {participantList.some(([pid]) => participantDates[pid]?.length || notes[pid]) && (
         <div className="mb-6">
-          <h2 className="text-sm font-semibold text-gray-600 mb-2">많이 겹치는 날</h2>
-          <div className="space-y-1">
-            {topDates.map(([date, pids]) => {
-              const isAll = pids.length === writerCount && writerCount > 0;
+          <h2 className="text-sm font-semibold text-gray-600 mb-3">참여자별 현황</h2>
+          <div className="space-y-3">
+            {participantList.map(([pid, name]) => {
+              const dates = participantDates[pid] || [];
+              const note = notes[pid];
+              const isMe = pid === auth.participantId;
+              if (!dates.length && !note) return null;
               return (
-                <button
-                  key={date}
-                  onClick={() => setPopupDate(date)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-left transition-colors ${isAll ? "bg-emerald-50 border border-emerald-300" : "bg-gray-50 border border-gray-200 hover:bg-gray-100"}`}
-                >
-                  <span className={isAll ? "font-semibold text-emerald-700" : "text-gray-700"}>
-                    {date} {isAll && "⭐"}
-                  </span>
-                  <span className={`text-xs ${isAll ? "text-emerald-600" : "text-gray-400"}`}>
-                    {pids.length}/{writerCount}명
-                  </span>
-                </button>
+                <div key={pid} className={`rounded-xl p-3 border ${isMe ? "border-indigo-200 bg-indigo-50" : "border-gray-200 bg-gray-50"}`}>
+                  <p className={`text-xs font-semibold mb-2 ${isMe ? "text-indigo-600" : "text-gray-500"}`}>
+                    {name}{isMe ? " (나)" : ""}
+                  </p>
+                  {dates.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {dates.map((date) => {
+                        const isOverlap = overlappingDates.has(date);
+                        return (
+                          <button
+                            key={date}
+                            onClick={() => setPopupDate(date)}
+                            className={`text-xs px-2 py-0.5 rounded-full font-medium transition-colors ${
+                              isOverlap
+                                ? "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-400"
+                                : "bg-gray-200 text-gray-600"
+                            }`}
+                          >
+                            {formatDate(date)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {note && <p className="text-sm text-gray-700 whitespace-pre-wrap">{note}</p>}
+                </div>
               );
             })}
           </div>
+          {overlappingDates.size > 0 && (
+            <p className="mt-2 text-xs text-emerald-600">
+              <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1" />
+              초록 날짜는 2명 이상 겹치는 날이에요
+            </p>
+          )}
         </div>
       )}
 
@@ -315,19 +358,6 @@ export default function MemoView({ code, auth, roomState, myDates, setMyDates, o
           {noteSaved ? "저장됨!" : noteSaving ? "저장 중..." : "저장"}
         </button>
       </div>
-
-      {/* Others' memos */}
-      {otherParticipants.some(([pid]) => notes[pid]) && (
-        <div className="mb-6 space-y-2">
-          <h2 className="text-sm font-semibold text-gray-600">다른 참여자 메모</h2>
-          {otherParticipants.filter(([pid]) => notes[pid]).map(([pid, name]) => (
-            <div key={pid} className="bg-gray-50 rounded-xl p-3">
-              <p className="text-xs font-medium text-gray-500 mb-1">{name}</p>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{notes[pid]}</p>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Owner confirm */}
       {isOwner && !meta.confirmedText && (
