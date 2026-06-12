@@ -56,17 +56,6 @@ export default function RoomClient({ code }: { code: string }) {
     setMyDates(dates);
   }, [code]);
 
-  // Sync myDates when roomState changes
-  useEffect(() => {
-    if (auth && roomState) {
-      const dates = new Set<string>();
-      for (const [date, pids] of Object.entries(roomState.heatmap)) {
-        if ((pids as string[]).includes(auth.participantId)) dates.add(date);
-      }
-      setMyDates(dates);
-    }
-  }, [roomState, auth]);
-
   useEffect(() => {
     async function init() {
       const pid = localStorage.getItem(`room:${code}:pid`);

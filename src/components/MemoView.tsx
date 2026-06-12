@@ -244,7 +244,7 @@ export default function MemoView({ code, auth, roomState, myDates, setMyDates, o
               <div
                 key={key}
                 className={`
-                  relative rounded-lg py-2 text-sm font-medium cursor-pointer transition-colors
+                  relative rounded-lg py-2 text-sm font-medium cursor-pointer transition-colors text-center
                   ${myChecked ? "bg-indigo-500 text-white" : count > 0 ? heatClass : "hover:bg-gray-100 text-gray-700"}
                   ${isAll ? "ring-2 ring-emerald-400 ring-inset" : ""}
                 `}
