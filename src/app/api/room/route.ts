@@ -1,0 +1,58 @@
+import { NextResponse } from "next/server";
+import { redis } from "@/lib/redis";
+import { KEY, TTL_SECONDS } from "@/lib/keys";
+import { generateRoomCode, generateToken, hashSecret } from "@/lib/crypto";
+import { randomBytes } from "crypto";
+
+function generateParticipantId(): string {
+  return randomBytes(12).toString("hex");
+}
+
+export async function POST(req: Request) {
+  const body = await req.json();
+  const { title, timezone, startHour, endHour, dates, notice, ownerName, ownerPin } = body;
+
+  if (!title || !timezone || startHour == null || endHour == null || !dates?.length || !ownerName || !ownerPin) {
+    return NextResponse.json({ error: "필수 항목 누락" }, { status: 400 });
+  }
+
+  // Generate unique room code
+  let code = "";
+  for (let i = 0; i < 10; i++) {
+    const candidate = generateRoomCode();
+    const exists = await redis.exists(KEY.room(candidate));
+    if (!exists) { code = candidate; break; }
+  }
+  if (!code) return NextResponse.json({ error: "코드 생성 실패" }, { status: 500 });
+
+  const ownerId = generateParticipantId();
+  const token = generateToken();
+  const tokenHash = hashSecret(token);
+  const pinHash = hashSecret(ownerPin);
+  const now = Date.now();
+  const baseExpireAt = now + TTL_SECONDS * 1000;
+
+  const pipe = redis.pipeline();
+  pipe.hset(KEY.room(code), {
+    title,
+    timezone,
+    startHour: String(startHour),
+    endHour: String(endHour),
+    dates: JSON.stringify(dates),
+    notice: notice || "",
+    ownerId,
+    createdAt: String(now),
+    baseExpireAt: String(baseExpireAt),
+    confirmedSlot: "",
+  });
+  pipe.hset(KEY.participants(code), { [ownerId]: ownerName });
+  pipe.hset(KEY.secrets(code), { [ownerId]: `${tokenHash}:${pinHash}` });
+  pipe.set(KEY.version(code), "0");
+  pipe.expire(KEY.room(code), TTL_SECONDS);
+  pipe.expire(KEY.participants(code), TTL_SECONDS);
+  pipe.expire(KEY.secrets(code), TTL_SECONDS);
+  pipe.expire(KEY.version(code), TTL_SECONDS);
+  await pipe.exec();
+
+  return NextResponse.json({ code, participantId: ownerId, token });
+}
