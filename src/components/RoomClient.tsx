@@ -16,6 +16,8 @@ export type RoomMeta = {
 export type RoomState = {
   meta: RoomMeta;
   participants: Record<string, string>;
+  writerIds: string[];
+  heatmap: Record<string, string[]>;
   notes: Record<string, string>;
   version: string | number;
 };
@@ -29,6 +31,7 @@ export type Auth = {
 export default function RoomClient({ code }: { code: string }) {
   const [auth, setAuth] = useState<Auth | null>(null);
   const [roomState, setRoomState] = useState<RoomState | null>(null);
+  const [myDates, setMyDates] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const lastVersion = useRef<string | number | null>(null);
 
@@ -40,11 +43,34 @@ export default function RoomClient({ code }: { code: string }) {
     lastVersion.current = data.version;
   }, [code]);
 
+  const loadMyDates = useCallback(async (pid: string) => {
+    const res = await fetch(`/api/room/${code}`);
+    if (!res.ok) return;
+    const data: RoomState = await res.json();
+    setRoomState(data);
+    lastVersion.current = data.version;
+    const dates = new Set<string>();
+    for (const [date, pids] of Object.entries(data.heatmap)) {
+      if ((pids as string[]).includes(pid)) dates.add(date);
+    }
+    setMyDates(dates);
+  }, [code]);
+
+  // Sync myDates when roomState changes
+  useEffect(() => {
+    if (auth && roomState) {
+      const dates = new Set<string>();
+      for (const [date, pids] of Object.entries(roomState.heatmap)) {
+        if ((pids as string[]).includes(auth.participantId)) dates.add(date);
+      }
+      setMyDates(dates);
+    }
+  }, [roomState, auth]);
+
   useEffect(() => {
     async function init() {
       const pid = localStorage.getItem(`room:${code}:pid`);
       const token = localStorage.getItem(`room:${code}:token`);
-
       if (pid && token) {
         try {
           const res = await fetch(`/api/room/${code}/resume`, {
@@ -55,7 +81,7 @@ export default function RoomClient({ code }: { code: string }) {
           if (res.ok) {
             const data = await res.json();
             setAuth({ participantId: pid, token, name: data.name });
-            await fetchRoomState();
+            await loadMyDates(pid);
             setLoading(false);
             return;
           }
@@ -67,7 +93,7 @@ export default function RoomClient({ code }: { code: string }) {
       setLoading(false);
     }
     init();
-  }, [code, fetchRoomState]);
+  }, [code, fetchRoomState, loadMyDates]);
 
   // Polling
   useEffect(() => {
@@ -77,9 +103,7 @@ export default function RoomClient({ code }: { code: string }) {
         const res = await fetch(`/api/room/${code}/version`);
         if (!res.ok) return;
         const { version } = await res.json();
-        if (version !== lastVersion.current) {
-          await fetchRoomState();
-        }
+        if (version !== lastVersion.current) await fetchRoomState();
       } catch {}
     }, 5000);
     return () => clearInterval(interval);
@@ -89,7 +113,7 @@ export default function RoomClient({ code }: { code: string }) {
     setAuth(a);
     localStorage.setItem(`room:${code}:pid`, a.participantId);
     localStorage.setItem(`room:${code}:token`, a.token);
-    fetchRoomState();
+    loadMyDates(a.participantId);
   }
 
   if (loading) {
@@ -101,13 +125,7 @@ export default function RoomClient({ code }: { code: string }) {
   }
 
   if (!auth) {
-    return (
-      <JoinForm
-        code={code}
-        roomMeta={roomState?.meta ?? null}
-        onJoined={handleJoined}
-      />
-    );
+    return <JoinForm code={code} roomMeta={roomState?.meta ?? null} onJoined={handleJoined} />;
   }
 
   if (!roomState) return null;
@@ -117,6 +135,8 @@ export default function RoomClient({ code }: { code: string }) {
       code={code}
       auth={auth}
       roomState={roomState}
+      myDates={myDates}
+      setMyDates={setMyDates}
       onRefresh={fetchRoomState}
     />
   );

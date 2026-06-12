@@ -10,18 +10,32 @@ export async function GET(_req: Request, { params }: { params: Promise<{ code: s
 
     const participants = (await redis.hgetall(KEY.participants(code))) as Record<string, string> | null;
     const version = await redis.get(KEY.version(code));
-
     const pids = Object.keys(participants || {});
 
-    // Gather notes for all participants
+    // Gather avail (selected dates) and notes per participant
+    const availEntries: Record<string, string[]> = {};
     const notes: Record<string, string> = {};
+
     if (pids.length) {
       await Promise.all(
         pids.map(async (pid) => {
-          const note = await redis.get(KEY.note(code, pid)) as string | null;
-          if (note) notes[pid] = note;
+          const [dates, note] = await Promise.all([
+            redis.smembers(KEY.avail(code, pid)),
+            redis.get(KEY.note(code, pid)) as Promise<string | null>,
+          ]);
+          if (dates.length) availEntries[pid] = dates as string[];
+          if (note) notes[pid] = note as string;
         })
       );
+    }
+
+    // Heatmap: date -> list of pids
+    const heatmap: Record<string, string[]> = {};
+    for (const [pid, dates] of Object.entries(availEntries)) {
+      for (const date of dates) {
+        if (!heatmap[date]) heatmap[date] = [];
+        heatmap[date].push(pid);
+      }
     }
 
     // Disambiguate duplicate names
@@ -43,6 +57,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ code: s
     return NextResponse.json({
       meta,
       participants: displayNames,
+      writerIds: Object.keys(availEntries),
+      heatmap,
       notes,
       version,
     });
