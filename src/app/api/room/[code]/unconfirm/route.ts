@@ -20,7 +20,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
     const [tokenHash] = secretRaw.split(":");
     if (hashSecret(token) !== tokenHash) return NextResponse.json({ error: "인증 실패" }, { status: 401 });
 
-    await redis.hset(KEY.room(code), { confirmedSlot: "" });
+    await redis.hset(KEY.room(code), { confirmedText: "" });
 
     const baseExpireAt = Number(meta.baseExpireAt);
     const ttlSeconds = Math.max(Math.floor((baseExpireAt - Date.now()) / 1000), 86400);

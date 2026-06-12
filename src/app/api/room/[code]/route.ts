@@ -12,26 +12,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ code: s
     const version = await redis.get(KEY.version(code));
 
     const pids = Object.keys(participants || {});
-    const availEntries: Record<string, string[]> = {};
+
+    // Gather notes for all participants
+    const notes: Record<string, string> = {};
     if (pids.length) {
       await Promise.all(
         pids.map(async (pid) => {
-          const slots = await redis.smembers(KEY.avail(code, pid));
-          if (slots.length) availEntries[pid] = slots;
+          const note = await redis.get(KEY.note(code, pid)) as string | null;
+          if (note) notes[pid] = note;
         })
       );
     }
 
-    const heatmap: Record<string, string[]> = {};
-    for (const [pid, slots] of Object.entries(availEntries)) {
-      for (const slot of slots) {
-        if (!heatmap[slot]) heatmap[slot] = [];
-        heatmap[slot].push(pid);
-      }
-    }
-
-    const writerIds = Object.keys(availEntries);
-
+    // Disambiguate duplicate names
     const nameCount: Record<string, number> = {};
     const nameIndex: Record<string, number> = {};
     const displayNames: Record<string, string> = {};
@@ -50,9 +43,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ code: s
     return NextResponse.json({
       meta,
       participants: displayNames,
-      rawParticipants: participants || {},
-      writerIds,
-      heatmap,
+      notes,
       version,
     });
   } catch (e) {

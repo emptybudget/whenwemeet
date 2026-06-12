@@ -11,9 +11,9 @@ function generateParticipantId(): string {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { title, timezone, startHour, endHour, dates, notice, ownerName, ownerPin } = body;
+    const { title, notice, ownerName, ownerPin } = body;
 
-    if (!title || !timezone || startHour == null || endHour == null || !dates?.length || !ownerName || !ownerPin) {
+    if (!title || !ownerName || !ownerPin) {
       return NextResponse.json({ error: "필수 항목 누락" }, { status: 400 });
     }
 
@@ -35,15 +35,11 @@ export async function POST(req: Request) {
     const pipe = redis.pipeline();
     pipe.hset(KEY.room(code), {
       title,
-      timezone,
-      startHour: String(startHour),
-      endHour: String(endHour),
-      dates: JSON.stringify(dates),
       notice: notice || "",
       ownerId,
       createdAt: String(now),
       baseExpireAt: String(baseExpireAt),
-      confirmedSlot: "",
+      confirmedText: "",
     });
     pipe.hset(KEY.participants(code), { [ownerId]: ownerName });
     pipe.hset(KEY.secrets(code), { [ownerId]: `${tokenHash}:${pinHash}` });
