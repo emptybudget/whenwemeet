@@ -15,7 +15,12 @@ type Props = {
 const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
 function toKey(d: Date) {
-  return d.toISOString().slice(0, 10);
+  // Build from LOCAL date parts, not toISOString() (which is UTC and would
+  // shift the day backwards for timezones ahead of UTC, e.g. KST = UTC+9).
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function getDaysInMonth(year: number, month: number) {
