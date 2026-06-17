@@ -33,11 +33,6 @@ function getDaysInMonth(year: number, month: number) {
   return days;
 }
 
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr + "T00:00:00");
-  return `${d.getMonth() + 1}/${d.getDate()}`;
-}
-
 function formatDateDow(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
   return `${d.getMonth() + 1}/${d.getDate()}(${DAY_LABELS[d.getDay()]})`;
@@ -384,7 +379,7 @@ export default function MemoView({ code, auth, roomState, myDates, setMyDates, o
                                 : "bg-gray-200 text-gray-600"
                             }`}
                           >
-                            {formatDate(date)}
+                            {formatDateDow(date)}
                           </button>
                         );
                       })}
