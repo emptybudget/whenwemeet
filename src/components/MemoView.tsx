@@ -61,6 +61,7 @@ export default function MemoView({ code, auth, roomState, myDates, setMyDates, o
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [leaveConfirm, setLeaveConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   // Drag toggle
   const dragRef = useRef<{ active: boolean; startChecked: boolean; touched: Set<string> }>({
@@ -189,9 +190,7 @@ export default function MemoView({ code, auth, roomState, myDates, setMyDates, o
       .map(([date]) => date)
   );
 
-  const participantList = Object.entries(participants).sort(([a], [b]) =>
-    a === auth.participantId ? -1 : b === auth.participantId ? 1 : 0
-  );
+  const otherParticipants = Object.entries(participants).filter(([pid]) => pid !== auth.participantId);
 
   return (
     <div
@@ -203,7 +202,15 @@ export default function MemoView({ code, auth, roomState, myDates, setMyDates, o
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold text-indigo-600">{meta.title}</h1>
-            <p className="text-xs text-gray-400 mt-0.5">방 코드: <span className="font-mono font-medium">{code}</span></p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs text-gray-400">방 코드: <span className="font-mono font-medium text-gray-600">{code}</span></span>
+              <button
+                onClick={() => { navigator.clipboard.writeText(code); setCodeCopied(true); setTimeout(() => setCodeCopied(false), 2000); }}
+                className="text-xs px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+              >
+                {codeCopied ? "복사됨!" : "코드 복사"}
+              </button>
+            </div>
           </div>
           <span className="text-sm text-gray-400 mt-1">{participantCount}명 참여</span>
         </div>
@@ -292,22 +299,40 @@ export default function MemoView({ code, auth, roomState, myDates, setMyDates, o
         )}
       </div>
 
-      {/* Per-participant dates + memos */}
-      {participantList.some(([pid]) => participantDates[pid]?.length || notes[pid]) && (
-        <div className="mb-6">
-          <h2 className="text-sm font-semibold text-gray-600 mb-3">참여자별 현황</h2>
+      {/* Memo */}
+      <div className="mb-6">
+        <label className="block text-sm font-semibold mb-2">
+          메모 <span className="text-gray-400 font-normal text-xs">(추가로 전달할 내용)</span>
+        </label>
+        <textarea
+          value={myNote}
+          onChange={(e) => setMyNote(e.target.value)}
+          rows={3}
+          placeholder="예: 오전은 어렵고 오후면 다 됩니다"
+          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+        />
+        <button onClick={saveNote} disabled={noteSaving}
+          className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-40 transition-colors">
+          {noteSaved ? "저장됨!" : noteSaving ? "저장 중..." : "저장"}
+        </button>
+      </div>
+
+      {/* Other participants' dates + memos */}
+      <div className="mb-6">
+        <h2 className="text-sm font-semibold text-gray-600 mb-3">
+          다른 참여자 <span className="text-gray-400 font-normal text-xs">({otherParticipants.length}명)</span>
+        </h2>
+        {otherParticipants.length === 0 ? (
+          <p className="text-sm text-gray-400">아직 다른 참여자가 없어요. 방 코드를 공유해보세요.</p>
+        ) : (
           <div className="space-y-3">
-            {participantList.map(([pid, name]) => {
+            {otherParticipants.map(([pid, name]) => {
               const dates = participantDates[pid] || [];
               const note = notes[pid];
-              const isMe = pid === auth.participantId;
-              if (!dates.length && !note) return null;
               return (
-                <div key={pid} className={`rounded-xl p-3 border ${isMe ? "border-indigo-200 bg-indigo-50" : "border-gray-200 bg-gray-50"}`}>
-                  <p className={`text-xs font-semibold mb-2 ${isMe ? "text-indigo-600" : "text-gray-500"}`}>
-                    {name}{isMe ? " (나)" : ""}
-                  </p>
-                  {dates.length > 0 && (
+                <div key={pid} className="rounded-xl p-3 border border-gray-200 bg-gray-50">
+                  <p className="text-xs font-semibold mb-2 text-gray-500">{name}</p>
+                  {dates.length > 0 ? (
                     <div className="flex flex-wrap gap-1 mb-2">
                       {dates.map((date) => {
                         const isOverlap = overlappingDates.has(date);
@@ -326,37 +351,21 @@ export default function MemoView({ code, auth, roomState, myDates, setMyDates, o
                         );
                       })}
                     </div>
+                  ) : (
+                    <p className="text-xs text-gray-400 mb-1">선택한 날짜 없음</p>
                   )}
                   {note && <p className="text-sm text-gray-700 whitespace-pre-wrap">{note}</p>}
                 </div>
               );
             })}
           </div>
-          {overlappingDates.size > 0 && (
-            <p className="mt-2 text-xs text-emerald-600">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1" />
-              초록 날짜는 2명 이상 겹치는 날이에요
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Memo */}
-      <div className="mb-6">
-        <label className="block text-sm font-semibold mb-2">
-          메모 <span className="text-gray-400 font-normal text-xs">(추가로 전달할 내용)</span>
-        </label>
-        <textarea
-          value={myNote}
-          onChange={(e) => setMyNote(e.target.value)}
-          rows={3}
-          placeholder="예: 오전은 어렵고 오후면 다 됩니다"
-          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-        />
-        <button onClick={saveNote} disabled={noteSaving}
-          className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-40 transition-colors">
-          {noteSaved ? "저장됨!" : noteSaving ? "저장 중..." : "저장"}
-        </button>
+        )}
+        {overlappingDates.size > 0 && (
+          <p className="mt-2 text-xs text-emerald-600">
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1" />
+            초록색 날짜는 나를 포함해 2명 이상 겹치는 날이에요
+          </p>
+        )}
       </div>
 
       {/* Owner confirm */}
