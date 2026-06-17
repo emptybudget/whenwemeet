@@ -315,6 +315,12 @@ export default function MemoView({ code, auth, roomState, myDates, setMyDates, o
           className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-40 transition-colors">
           {noteSaved ? "저장됨!" : noteSaving ? "저장 중..." : "저장"}
         </button>
+        {notes[auth.participantId] && (
+          <div className="mt-3 rounded-xl p-3 border border-indigo-200 bg-indigo-50">
+            <p className="text-xs font-semibold mb-1 text-indigo-600">저장된 내 메모</p>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap">{notes[auth.participantId]}</p>
+          </div>
+        )}
       </div>
 
       {/* Other participants' dates + memos */}
