@@ -315,10 +315,32 @@ export default function MemoView({ code, auth, roomState, myDates, setMyDates, o
           className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-40 transition-colors">
           {noteSaved ? "저장됨!" : noteSaving ? "저장 중..." : "저장"}
         </button>
-        {notes[auth.participantId] && (
+        {(myDates.size > 0 || notes[auth.participantId]) && (
           <div className="mt-3 rounded-xl p-3 border border-indigo-200 bg-indigo-50">
-            <p className="text-xs font-semibold mb-1 text-indigo-600">저장된 내 메모</p>
-            <p className="text-sm text-gray-700 whitespace-pre-wrap">{notes[auth.participantId]}</p>
+            <p className="text-xs font-semibold mb-2 text-indigo-600">저장된 내 정보</p>
+            {myDates.size > 0 && (
+              <div className="flex flex-wrap gap-1 mb-2">
+                {Array.from(myDates).sort().map((date) => {
+                  const isOverlap = overlappingDates.has(date);
+                  return (
+                    <button
+                      key={date}
+                      onClick={() => setPopupDate(date)}
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium transition-colors ${
+                        isOverlap
+                          ? "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-400"
+                          : "bg-gray-200 text-gray-600"
+                      }`}
+                    >
+                      {formatDate(date)}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {notes[auth.participantId] && (
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{notes[auth.participantId]}</p>
+            )}
           </div>
         )}
       </div>
