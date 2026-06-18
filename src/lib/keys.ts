@@ -9,6 +9,7 @@ export const KEY = {
 
 export const TTL_DAYS = 60;
 export const TTL_SECONDS = TTL_DAYS * 24 * 60 * 60;
+export const MAX_PARTICIPANTS = 20;
 
 export function ttlFromDate(d: Date): number {
   return Math.floor((d.getTime() - Date.now()) / 1000);

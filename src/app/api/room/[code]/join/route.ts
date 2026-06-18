@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { redis } from "@/lib/redis";
-import { KEY, TTL_SECONDS } from "@/lib/keys";
+import { KEY, TTL_SECONDS, MAX_PARTICIPANTS } from "@/lib/keys";
 import { generateToken, hashSecret } from "@/lib/crypto";
 import { randomBytes } from "crypto";
 
@@ -38,6 +38,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
           }
         }
       }
+    }
+
+    if (participants && Object.keys(participants).length >= MAX_PARTICIPANTS) {
+      return NextResponse.json({ error: `참여 인원은 최대 ${MAX_PARTICIPANTS}명까지 가능합니다` }, { status: 403 });
     }
 
     const pid = generateParticipantId();
