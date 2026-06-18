@@ -272,13 +272,23 @@ export default function MemoView({ code, auth, roomState, myDates, setMyDates, o
             const isAll = writerCount > 0 && count === writerCount;
             const heatClass = heatBg(count, writerCount);
 
+            // "All available" (emerald) takes priority over "my selection"
+            // (indigo) for the background, since the green signal was getting
+            // visually buried behind the blue fill. My selection still shows
+            // via the indigo ring when both apply.
+            let bgClass = "hover:bg-gray-100 text-gray-700";
+            let countTextClass = "";
+            if (isAll) { bgClass = "bg-emerald-500 text-white"; countTextClass = "text-emerald-100"; }
+            else if (myChecked) { bgClass = "bg-indigo-500 text-white"; countTextClass = "text-indigo-200"; }
+            else if (count > 0) bgClass = heatClass;
+
             return (
               <div
                 key={key}
                 className={`
                   relative rounded-lg py-2 text-sm font-medium cursor-pointer transition-colors text-center
-                  ${myChecked ? "bg-indigo-500 text-white" : count > 0 ? heatClass : "hover:bg-gray-100 text-gray-700"}
-                  ${isAll ? "ring-2 ring-emerald-400 ring-inset" : ""}
+                  ${bgClass}
+                  ${myChecked && isAll ? "ring-2 ring-indigo-400 ring-inset" : ""}
                 `}
                 onMouseDown={() => handleDayDown(key)}
                 onMouseEnter={() => handleDayEnter(key)}
@@ -287,7 +297,7 @@ export default function MemoView({ code, auth, roomState, myDates, setMyDates, o
               >
                 <div>{d.getDate()}</div>
                 {count > 0 && (
-                  <div className={`text-xs leading-none ${myChecked ? "text-indigo-200" : ""}`}>{count}명</div>
+                  <div className={`text-xs leading-none ${countTextClass}`}>{count}명</div>
                 )}
               </div>
             );
