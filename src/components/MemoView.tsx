@@ -207,18 +207,25 @@ export default function MemoView({ code, auth, roomState, myDates, setMyDates, o
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold text-indigo-600">{meta.title}</h1>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs text-gray-400">방 코드: <span className="font-mono font-medium text-gray-600">{code}</span></span>
+            <p className="text-xs text-gray-400 mt-1">
+              방 코드: <span className="font-mono font-medium text-gray-600">{code}</span>
               <button
                 onClick={() => { navigator.clipboard.writeText(code); setCodeCopied(true); setTimeout(() => setCodeCopied(false), 2000); }}
-                className="text-xs px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                className="ml-1.5 text-indigo-500 hover:underline"
               >
-                {codeCopied ? "복사됨!" : "코드 복사"}
+                {codeCopied ? "복사됨!" : "코드만 복사"}
               </button>
-            </div>
+            </p>
           </div>
           <span className="text-sm text-gray-400 mt-1">{participantCount}명 참여</span>
         </div>
+
+        <button
+          onClick={() => { navigator.clipboard.writeText(window.location.href); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+          className="mt-3 w-full py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors"
+        >
+          {copied ? "복사됨! 친구에게 보내보세요" : "초대 링크 복사"}
+        </button>
 
         {meta.notice && (
           <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
@@ -241,11 +248,6 @@ export default function MemoView({ code, auth, roomState, myDates, setMyDates, o
             )}
           </div>
         )}
-
-        <button onClick={() => { navigator.clipboard.writeText(window.location.href); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-          className="mt-3 text-sm text-indigo-500 hover:underline">
-          {copied ? "복사됨!" : "링크 복사"}
-        </button>
       </div>
 
       {/* Calendar */}
